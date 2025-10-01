@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: tfc-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tfc_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - tfc-network
+
+  app:
+    build: .
+    container_name: tfc-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+      - "5555:5555"
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgres123@postgres:5432/tfc_db"
+      NODE_ENV: development
+      JWT_SECRET: "your-super-secret-jwt-key-for-development"
+    depends_on:
+      - postgres
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - tfc-network
+    command: npm run start:dev
+
+volumes:
+  postgres_data:
+
+networks:
+  tfc-network:
+    driver: bridge

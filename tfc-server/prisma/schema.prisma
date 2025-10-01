@@ -1,0 +1,381 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                Int              @id @default(autoincrement())
+  role              Role             @default(USER)
+  createdAt         DateTime         @default(now()) @map("created_at")
+  name              String
+  phone             String           @unique
+  password          String
+  birthDate         DateTime?        @map("birth_date")
+  hobbies           String?
+  patronymic        String?
+  personalInstagram String?          @map("personal_instagram")
+  personalPhone     String?          @map("personal_phone")
+  personalTelegram  String?          @map("personal_telegram")
+  surname           String?
+  yearsInBusiness   Int?             @map("years_in_business")
+  businessContext   BusinessContext?
+  comments          Comment[]
+  metricHistory     MetricHistory[]
+  metricValues      MetricValue[]
+  notifications     Notification[]
+  taskActivities    TaskActivity[]
+  taskAttachments   TaskAttachment[]
+  assignedTasks     Task[]           @relation("AssignedTasks")
+  createdTasks      Task[]           @relation("CreatedTasks")
+  ledTeams          Team[]           @relation("TeamLeader")
+  profile           UserProfile?
+  teams             UserTeam[]
+
+  @@map("users")
+}
+
+model Team {
+  id          Int        @id @default(autoincrement())
+  name        String
+  description String?
+  createdAt   DateTime   @default(now()) @map("created_at")
+  isActive    Boolean    @default(true)
+  leaderId    Int?       @map("leader_id")
+  maxMembers  Int        @default(10)
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  tasks       Task[]
+  leader      User?      @relation("TeamLeader", fields: [leaderId], references: [id])
+  members     UserTeam[]
+
+  @@map("teams")
+}
+
+model UserTeam {
+  id       Int       @id @default(autoincrement())
+  isActive Boolean   @default(true) @map("is_active")
+  joinedAt DateTime  @default(now()) @map("joined_at")
+  leftAt   DateTime? @map("left_at")
+  teamId   Int       @map("team_id")
+  userId   Int       @map("user_id")
+  team     Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, isActive], map: "one_active_team_per_user")
+  @@index([teamId, isActive])
+  @@map("user_teams")
+}
+
+model Task {
+  id             Int              @id @default(autoincrement())
+  title          String
+  description    String?
+  status         TaskStatus       @default(PENDING)
+  dueDate        DateTime?        @map("due_date")
+  type           TaskType
+  creatorId      Int              @map("creator_id")
+  assigneeId     Int?             @map("assignee_id")
+  teamId         Int?             @map("team_id")
+  parentTaskId   Int?             @map("parent_task_id")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  actualHours    Int?             @map("actual_hours")
+  estimatedHours Int?             @map("estimated_hours")
+  priority       TaskPriority     @default(MEDIUM)
+  progress       Int              @default(0)
+  startDate      DateTime?        @map("start_date")
+  color          String?
+  completedAt    DateTime?        @map("completed_at")
+  isArchived     Boolean          @default(false) @map("is_archived")
+  position       Int?
+  comments       Comment[]
+  Notification   Notification[]
+  activities     TaskActivity[]
+  attachments    TaskAttachment[]
+  dependents     TaskDependency[] @relation("BlockingTask")
+  dependencies   TaskDependency[] @relation("DependentTask")
+  tags           TaskTag[]
+  assignee       User?            @relation("AssignedTasks", fields: [assigneeId], references: [id])
+  creator        User             @relation("CreatedTasks", fields: [creatorId], references: [id], onDelete: SetNull)
+  parentTask     Task?            @relation("Subtasks", fields: [parentTaskId], references: [id], onDelete: Cascade)
+  subtasks       Task[]           @relation("Subtasks")
+  team           Team?            @relation(fields: [teamId], references: [id])
+
+  @@index([dueDate])
+  @@index([status])
+  @@index([teamId, type])
+  @@index([priority, dueDate])
+  @@index([progress, status])
+  @@index([isArchived, status])
+  @@index([assigneeId, status])
+  @@index([creatorId, createdAt])
+  @@index([parentTaskId])
+  @@index([position])
+  @@map("tasks")
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  body      String
+  createdAt DateTime @default(now()) @map("created_at")
+  taskId    Int      @map("task_id")
+  authorId  Int      @map("author_id")
+  author    User     @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@map("comments")
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  type      String
+  payload   Json?
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+  userId    Int      @map("user_id")
+  taskId    Int?     @map("task_id")
+  task      Task?    @relation(fields: [taskId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model UserProfile {
+  id                  Int      @id @default(autoincrement())
+  businessName        String?  @map("business_name")
+  businessDescription String?  @map("business_description")
+  currentRevenue      Decimal? @map("current_revenue") @db.Decimal(15, 2)
+  targetRevenue       Decimal? @map("target_revenue") @db.Decimal(15, 2)
+  currentEmployees    Int?     @map("current_employees")
+  targetEmployees     Int?     @map("target_employees")
+  bio                 String?
+  avatarUrl           String?  @map("avatar_url")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+  userId              Int      @unique @map("user_id")
+  addresses           String?
+  userAge             Int?     @map("user_age")
+  userName            String?  @map("user_name")
+  website             String?
+  workInstagram       String?  @map("work_instagram")
+  workPhone           String?  @map("work_phone")
+  workSchedule        String?  @map("work_schedule")
+  workTelegram        String?  @map("work_telegram")
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model MetricDefinition {
+  id          Int             @id @default(autoincrement())
+  name        String
+  description String?
+  category    MetricCategory
+  unit        MetricUnit
+  isActive    Boolean         @default(true) @map("is_active")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  direction   MetricDirection @default(HIGHER_IS_BETTER)
+  metrics     MetricValue[]
+
+  @@map("metric_definitions")
+}
+
+model MetricValue {
+  id                 Int              @id @default(autoincrement())
+  value              Decimal?         @db.Decimal(15, 2)
+  targetValue        Decimal?         @map("target_value") @db.Decimal(15, 2)
+  periodType         MetricPeriodType @map("period_type")
+  notes              String?
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+  userId             Int              @map("user_id")
+  metricDefinitionId Int              @map("metric_definition_id")
+  periodDate         DateTime         @map("period_date")
+  history            MetricHistory[]
+  metricDefinition   MetricDefinition @relation(fields: [metricDefinitionId], references: [id], onDelete: Cascade)
+  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, metricDefinitionId, periodType, periodDate])
+  @@index([userId, periodDate])
+  @@index([metricDefinitionId, periodDate])
+  @@map("metric_values")
+}
+
+model MetricHistory {
+  id            Int              @id @default(autoincrement())
+  oldValue      Decimal?         @map("old_value") @db.Decimal(15, 2)
+  newValue      Decimal?         @map("new_value") @db.Decimal(15, 2)
+  oldTarget     Decimal?         @map("old_target") @db.Decimal(15, 2)
+  newTarget     Decimal?         @map("new_target") @db.Decimal(15, 2)
+  changeReason  String?          @map("change_reason")
+  changedAt     DateTime         @default(now()) @map("changed_at")
+  userId        Int              @map("user_id")
+  metricValueId Int              @map("metric_value_id")
+  changeType    MetricChangeType @map("change_type")
+  metricValue   MetricValue      @relation(fields: [metricValueId], references: [id], onDelete: Cascade)
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, changedAt])
+  @@index([metricValueId, changedAt])
+  @@index([changeType, changedAt])
+  @@map("metric_history")
+}
+
+model BusinessContext {
+  id                Int      @id @default(autoincrement())
+  industry          String?
+  businessStage     String?  @map("business_stage")
+  foundedYear       Int?     @map("founded_year")
+  location          String?
+  mainProducts      String?  @map("main_products")
+  targetAudience    String?  @map("target_audience")
+  businessModel     String?  @map("business_model")
+  marketSize        Decimal? @map("market_size") @db.Decimal(15, 2)
+  competitorCount   Int?     @map("competitor_count")
+  dataRelevanceDate DateTime @map("data_relevance_date")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  userId            Int      @unique @map("user_id")
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("business_contexts")
+}
+
+model TaskAttachment {
+  id           Int            @id @default(autoincrement())
+  filename     String
+  originalName String         @map("original_name")
+  mimeType     String         @map("mime_type")
+  size         Int
+  url          String
+  type         AttachmentType
+  uploadedAt   DateTime       @default(now()) @map("uploaded_at")
+  taskId       Int            @map("task_id")
+  uploadedBy   Int            @map("uploaded_by")
+  task         Task           @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  uploader     User           @relation(fields: [uploadedBy], references: [id])
+
+  @@map("task_attachments")
+}
+
+model Tag {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  color     String?
+  createdAt DateTime  @default(now()) @map("created_at")
+  tasks     TaskTag[]
+
+  @@map("tags")
+}
+
+model TaskTag {
+  taskId Int  @map("task_id")
+  tagId  Int  @map("tag_id")
+  tag    Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, tagId])
+  @@map("task_tags")
+}
+
+model TaskDependency {
+  id              Int      @id @default(autoincrement())
+  dependentTaskId Int      @map("dependent_task_id")
+  blockingTaskId  Int      @map("blocking_task_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  blockingTask    Task     @relation("BlockingTask", fields: [blockingTaskId], references: [id], onDelete: Cascade)
+  dependentTask   Task     @relation("DependentTask", fields: [dependentTaskId], references: [id], onDelete: Cascade)
+
+  @@unique([dependentTaskId, blockingTaskId])
+  @@map("task_dependencies")
+}
+
+model TaskActivity {
+  id          Int      @id @default(autoincrement())
+  action      String
+  oldValue    String?
+  newValue    String?
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  taskId      Int      @map("task_id")
+  userId      Int      @map("user_id")
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([taskId, createdAt])
+  @@map("task_activities")
+}
+
+enum Role {
+  USER
+  TEAM_LEADER
+  ADMIN
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+  BACKLOG
+  TODO
+  IN_REVIEW
+  CANCELLED
+}
+
+enum TaskType {
+  PERSONAL
+  TEAM
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum AttachmentType {
+  IMAGE
+  DOCUMENT
+  VIDEO
+  OTHER
+}
+
+enum MetricCategory {
+  FINANCIAL
+  OPERATIONAL
+  STRATEGIC
+  CUSTOMER
+  PRODUCTIVITY
+}
+
+enum MetricPeriodType {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum MetricUnit {
+  CURRENCY
+  PERCENTAGE
+  COUNT
+  RATIO
+  HOURS
+  DAYS
+}
+
+enum MetricChangeType {
+  CORRECTION
+  UPDATE
+}
+
+enum MetricDirection {
+  HIGHER_IS_BETTER
+  LOWER_IS_BETTER
+}

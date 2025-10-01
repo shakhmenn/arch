@@ -1,0 +1,399 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "TaskFlow Club API",
+    "version": "1.0.0",
+    "description": "Подробная документация API. Включает описание запросов/ответов и доступ по ролям (ORGANIZER, ENTREPRENEUR). Аутентификация выполняется через JWT (Bearer token)."
+  },
+  "servers": [
+    { "url": "http://localhost:3000", "description": "Локальная среда" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Role": {
+        "type": "string",
+        "enum": ["ORGANIZER", "ENTREPRENEUR"]
+      },
+      "TaskStatus": {
+        "type": "string",
+        "enum": ["PENDING", "IN_PROGRESS", "DONE"]
+      },
+      "TaskType": {
+        "type": "string",
+        "enum": ["PERSONAL", "TEAM"]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "statusCode": { "type": "integer" },
+          "message": { "type": "string" },
+          "error": { "type": "string" }
+        }
+      },
+      "UserPublic": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "phone": { "type": "string" },
+          "name": { "type": "string" },
+          "role": { "$ref": "#/components/schemas/Role" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["id", "phone", "name", "role", "createdAt"]
+      },
+      "Team": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string" },
+          "description": { "type": ["string", "null"] },
+          "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["id", "name", "createdAt"]
+      },
+      "Task": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "title": { "type": "string" },
+          "description": { "type": ["string", "null"] },
+          "status": { "$ref": "#/components/schemas/TaskStatus" },
+          "dueDate": { "type": ["string", "null"], "format": "date-time" },
+          "type": { "$ref": "#/components/schemas/TaskType" },
+          "creatorId": { "type": "integer" },
+          "assigneeId": { "type": ["integer", "null"] },
+          "teamId": { "type": ["integer", "null"] },
+          "parentTaskId": { "type": ["integer", "null"] },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["id", "title", "status", "type", "creatorId", "createdAt", "updatedAt"]
+      },
+      "Comment": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "body": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "taskId": { "type": "integer" },
+          "authorId": { "type": "integer" },
+          "author": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "integer" },
+              "name": { "type": "string" }
+            },
+            "required": ["id", "name"]
+          }
+        },
+        "required": ["id", "body", "createdAt", "taskId", "authorId"]
+      },
+      "UserTeam": {
+        "type": "object",
+        "properties": {
+          "userId": { "type": "integer" },
+          "teamId": { "type": "integer" }
+        },
+        "required": ["userId", "teamId"]
+      },
+      "RegisterRequestDto": {
+        "type": "object",
+        "properties": {
+          "phone": { "type": "string", "pattern": "^\\+?[0-9]{10,15}$" },
+          "password": { "type": "string", "minLength": 6 },
+          "name": { "type": "string", "minLength": 2 }
+        },
+        "required": ["phone", "password", "name"]
+      },
+      "LoginRequestDto": {
+        "type": "object",
+        "properties": {
+          "phone": { "type": "string", "pattern": "^\\+?[0-9]{10,15}$" },
+          "password": { "type": "string" }
+        },
+        "required": ["phone", "password"]
+      },
+      "AuthTokenResponse": {
+        "type": "object",
+        "properties": {
+          "access_token": { "type": "string" },
+          "user": { "$ref": "#/components/schemas/UserPublic" }
+        },
+        "required": ["access_token", "user"]
+      },
+      "CreateTeamDto": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "minLength": 2 },
+          "description": { "type": "string" }
+        },
+        "required": ["name"]
+      },
+      "AssignUserDto": {
+        "type": "object",
+        "properties": {
+          "userId": { "type": "integer" }
+        },
+        "required": ["userId"]
+      },
+      "CreateTaskDto": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "type": { "$ref": "#/components/schemas/TaskType" },
+          "dueDate": { "type": "string", "format": "date" },
+          "teamId": { "type": "integer" },
+          "assigneeId": { "type": "integer" },
+          "parentTaskId": { "type": "integer" }
+        },
+        "required": ["title", "type"]
+      },
+      "UpdateStatusDto": {
+        "type": "object",
+        "properties": {
+          "status": { "$ref": "#/components/schemas/TaskStatus" }
+        },
+        "required": ["status"]
+      },
+      "CreateCommentDto": {
+        "type": "object",
+        "properties": {
+          "taskId": { "type": "integer" },
+          "body": { "type": "string", "minLength": 1 }
+        },
+        "required": ["taskId", "body"]
+      }
+    }
+  },
+  "tags": [
+    { "name": "Auth", "description": "Регистрация и вход" },
+    { "name": "Teams", "description": "Управление командами" },
+    { "name": "Tasks", "description": "Управление задачами" },
+    { "name": "Comments", "description": "Комментарии к задачам" },
+    { "name": "Users", "description": "Пользователи" }
+  ],
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Регистрация",
+        "description": "Создаёт нового пользователя (роль по умолчанию ENTREPRENEUR) и возвращает JWT токен.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/RegisterRequestDto" },
+              "examples": {
+                "default": {
+                  "value": { "phone": "+79990001122", "password": "secret12", "name": "Иван" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Успешная регистрация", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthTokenResponse" } } } },
+          "409": { "description": "Номер уже зарегистрирован", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "400": { "description": "Ошибка валидации", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Вход",
+        "description": "Логин по телефону и паролю. Возвращает JWT токен и публичные данные пользователя.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/LoginRequestDto" } }
+          }
+        },
+        "responses": {
+          "200": { "description": "Успешный вход", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthTokenResponse" } } } },
+          "401": { "description": "Неверные данные", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+
+    "/teams": {
+      "post": {
+        "tags": ["Teams"],
+        "summary": "Создать команду",
+        "description": "Доступно только ORGANIZER.",
+        "security": [{ "bearerAuth": [] }],
+        "x-roles": { "allowed": ["ORGANIZER"] },
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateTeamDto" } } }
+        },
+        "responses": {
+          "201": { "description": "Созданная команда", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Team" } } } },
+          "401": { "description": "Не авторизован", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "description": "Недостаточно прав", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      },
+      "get": {
+        "tags": ["Teams"],
+        "summary": "Список команд",
+        "description": "ORGANIZER видит все команды. ENTREPRENEUR — только свою (если есть).",
+        "security": [{ "bearerAuth": [] }],
+        "x-roles": { "allowed": ["ORGANIZER", "ENTREPRENEUR"] },
+        "responses": {
+          "200": { "description": "Список команд", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Team" } } } } },
+          "401": { "description": "Не авторизован", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/teams/{id}": {
+      "get": {
+        "tags": ["Teams"],
+        "summary": "Детали команды (пользователи и задачи)",
+        "description": "ORGANIZER — доступ ко всем. ENTREPRENEUR — только к своей команде.",
+        "security": [{ "bearerAuth": [] }],
+        "x-roles": { "allowed": ["ORGANIZER", "ENTREPRENEUR"] },
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } } ],
+        "responses": {
+          "200": {
+            "description": "Команда с пользователями и задачами",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "integer" },
+                    "name": { "type": "string" },
+                    "description": { "type": ["string", "null"] },
+                    "createdAt": { "type": "string", "format": "date-time" },
+                    "users": { "type": "array", "items": { "$ref": "#/components/schemas/UserPublic" } },
+                    "tasks": { "type": "array", "items": { "$ref": "#/components/schemas/Task" } }
+                  },
+                  "required": ["id", "name", "createdAt", "users", "tasks"]
+                }
+              }
+            }
+          },
+          "401": { "description": "Не авторизован", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "description": "Нет доступа к этой команде", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "description": "Команда не найдена", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/teams/{id}/users": {
+      "post": {
+        "tags": ["Teams"],
+        "summary": "Добавить пользователя в команду",
+        "description": "Только ORGANIZER. Пользователь может состоять только в одной команде.",
+        "security": [{ "bearerAuth": [] }],
+        "x-roles": { "allowed": ["ORGANIZER"] },
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } } ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AssignUserDto" } } } },
+        "responses": {
+          "201": { "description": "Пара пользователь-команда создана", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UserTeam" } } } },
+          "400": { "description": "Пользователь уже в команде или в другой команде", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "401": { "description": "Не авторизован", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "description": "Недостаточно прав", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "description": "Команда/пользователь не найден(ы)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+
+    "/tasks": {
+      "post": {
+        "tags": ["Tasks"],
+        "summary": "Создать задачу",
+        "description": "ORGANIZER и ENTREPRENEUR. Для TEAM задач требуется принадлежность к команде (если не ORGANIZER).",
+        "security": [{ "bearerAuth": [] }],
+        "x-roles": { "allowed": ["ORGANIZER", "ENTREPRENEUR"] },
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateTaskDto" } } } },
+        "responses": {
+          "201": { "description": "Созданная задача", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Task" } } } },
+          "401": { "description": "Не авторизован", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "description": "Нельзя создать командную задачу для чужой команды", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      },
+      "get": {
+        "tags": ["Tasks"],
+        "summary": "Список задач (личные + командные доступные)",
+        "security": [{ "bearerAuth": [] }],
+        "x-roles": { "allowed": ["ORGANIZER", "ENTREPRENEUR"] },
+        "responses": {
+          "200": { "description": "Массив задач", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Task" } } } } },
+          "401": { "description": "Не авторизован", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/tasks/{id}/status": {
+      "patch": {
+        "tags": ["Tasks"],
+        "summary": "Изменить статус задачи",
+        "description": "Доступно создателю, исполнителю или ORGANIZER.",
+        "security": [{ "bearerAuth": [] }],
+        "x-roles": { "allowed": ["ORGANIZER", "ENTREPRENEUR"] },
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } } ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateStatusDto" } } } },
+        "responses": {
+          "200": { "description": "Обновлённая задача", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Task" } } } },
+          "401": { "description": "Не авторизован", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "description": "Нет прав менять статус этой задачи", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "description": "Задача не найдена", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+
+    "/comments": {
+      "post": {
+        "tags": ["Comments"],
+        "summary": "Создать комментарий к задаче",
+        "description": "Доступно ORGANIZER и ENTREPRENEUR при наличии доступа к задаче.",
+        "security": [{ "bearerAuth": [] }],
+        "x-roles": { "allowed": ["ORGANIZER", "ENTREPRENEUR"] },
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateCommentDto" } } } },
+        "responses": {
+          "201": { "description": "Созданный комментарий", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Comment" } } } },
+          "401": { "description": "Не авторизован", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "description": "Нет доступа к комментированию этой задачи", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "description": "Задача не найдена", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      },
+      "get": {
+        "tags": ["Comments"],
+        "summary": "Список комментариев задачи",
+        "security": [{ "bearerAuth": [] }],
+        "x-roles": { "allowed": ["ORGANIZER", "ENTREPRENEUR"] },
+        "parameters": [ { "name": "taskId", "in": "query", "required": true, "schema": { "type": "integer" } } ],
+        "responses": {
+          "200": { "description": "Комментарии к задаче", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Comment" } } } } },
+          "401": { "description": "Не авторизован", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "description": "Нет доступа к этой задаче", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "description": "Задача не найдена", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+
+    "/users": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Список пользователей (только для ORGANIZER)",
+        "security": [{ "bearerAuth": [] }],
+        "x-roles": { "allowed": ["ORGANIZER"] },
+        "responses": {
+          "200": { "description": "Массив пользователей", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/UserPublic" } } } } },
+          "401": { "description": "Не авторизован", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "description": "Недостаточно прав", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    }
+  },
+  "x-auth": {
+    "description": "Для всех эндпоинтов, кроме /auth/*, требуется заголовок Authorization: Bearer <JWT>. Токен получается из /auth/login или /auth/register.",
+    "header": "Authorization: Bearer <token>"
+  }
+}

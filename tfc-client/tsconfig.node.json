@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    /* Основная компиляция */
+    "composite": true,
+    "skipLibCheck": true,
+    "target": "ES2022",
+    "lib": ["ES2022"],
+
+    /* Модули и резолв */
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+
+    /* Вывод */
+    "noEmit": true,
+
+    /* Линтинг и строгая типизация */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
+  },
+  "include": ["vite.config.ts"]
+}
